@@ -22,9 +22,8 @@ typedef struct {
 
 
 typedef struct {
-    /*  TODO: 
-        Message structure for wrapper
-    */
+    int size;       // Message size
+    char content[1024];  // Message content
 } message_t;
 
 void receive(message_t* message_ptr, mailbox_t* mailbox_ptr);
