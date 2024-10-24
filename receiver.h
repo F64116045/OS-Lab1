@@ -22,7 +22,7 @@ typedef struct {
 
 
 typedef struct {
-    int size;       // Message size
+    long type;       // Message size
     char content[1024];  // Message content
 } message_t;
 

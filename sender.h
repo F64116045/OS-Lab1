@@ -22,8 +22,8 @@ typedef struct {
 
 
 typedef struct {
-    int size;       // Message size
-    char content[1024];  // Message content
+    long type;
+    char content[1024];
 } message_t;
 
 void send(message_t message, mailbox_t* mailbox_ptr);

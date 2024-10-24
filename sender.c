@@ -1,3 +1,4 @@
+#include <time.h>
 #include "sender.h"
 #define SEM_SEND "/sem_send"
 #define SEM_RECV "/sem_recv"
@@ -5,9 +6,12 @@
 
 void send(message_t message, mailbox_t* mailbox_ptr){
     if (mailbox_ptr->flag == 1) {
-        msgsnd(mailbox_ptr->storage.msqid, &message, sizeof(message_t), 0);
+        if (msgsnd(mailbox_ptr->storage.msqid, &message, sizeof(message.content), 0) == -1) {
+            perror("msgsnd failed");
+            exit(EXIT_FAILURE);
+        }
     } else if (mailbox_ptr->flag == 2) {
-        memcpy(mailbox_ptr->storage.shm_addr, &message, sizeof(message_t));
+        strcpy(mailbox_ptr->storage.shm_addr, message.content);
     }
 
 }
@@ -30,14 +34,22 @@ int main(int argc, char *argv[]){
     message_t message;
 
     if (method == 1) {
-        // 初始化 Message Passing 的佇列
-        key_t key = ftok("somefile", 65);  // 生成唯一的 key
-        mailbox.storage.msqid = msgget(key, IPC_CREAT | 0666);  // 創建訊息佇列
+        printf("\033[1m\033[33mMessage Passing\033[0m\n");
+        key_t key = ftok("receiver.c", 65);
+        mailbox.storage.msqid = msgget(key, IPC_CREAT | 0666);
+        if (key == -1) {
+            perror("ftok failed");
+            exit(1);
+        }
     } else if (method == 2) {
-        // 初始化 Shared Memory
-        key_t key = ftok("somefile", 65);  // 生成唯一的 key
-        int shmid = shmget(key, sizeof(message_t), IPC_CREAT | 0666);  // 創建共享記憶體
-        mailbox.storage.shm_addr = (char*) shmat(shmid, NULL, 0);  // 附加共享記憶體
+        printf("\033[1m\033[33mShare Memory\033[0m\n");
+        key_t key = ftok("receiver.c", 65);
+        if (key == -1) {
+            perror("ftok failed");
+            exit(1);
+        }
+        int shmid = shmget(key, sizeof(message_t), IPC_CREAT | 0666);
+        mailbox.storage.shm_addr = (char*) shmat(shmid, NULL, 0); 
     }
 
     FILE *input = fopen(argv[2], "r");
@@ -46,33 +58,48 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
-     // 時間測量開始
+
     struct timespec start, end;
     sem_t *sem_send = sem_open(SEM_SEND, O_CREAT, 0666, 0); 
-    sem_t *sem_recv = sem_open(SEM_RECV, O_CREAT, 0666, 1); 
-    // 逐行讀取文件並發送消息
-    while (fgets(message.content, sizeof(message.content), input)) {
-        message.size = strlen(message.content);
-        sem_wait(sem_recv);  // 等待接收方準備好
-        clock_gettime(CLOCK_MONOTONIC, &start);  // 開始計時
-        send(message, &mailbox);  // 發送消息
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        printf("\033[1m\033[33mSending message\033[0m: %s", message.content);
-        sem_post(sem_send);  // 通知接收方消息已經發送
+    if (sem_send == SEM_FAILED) {
+        perror("sem_open failed for sem_send");
+        exit(EXIT_FAILURE);
+    }
+    sem_t *sem_recv = sem_open(SEM_RECV, O_CREAT, 0666, 1);
+    if (sem_recv == SEM_FAILED) {
+        perror("sem_open failed for sem_recv");
+        exit(EXIT_FAILURE);
     }
 
-    // 發送結束訊息（例如 "exit" 來告知接收方結束通信）
-    strcpy(message.content, "exit\n");
-    message.size = strlen(message.content);
+    double total_time = 0;
+    while (fgets(message.content, sizeof(message.content), input)) { 
+
+        sem_wait(sem_recv); 
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        send(message, &mailbox);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        sem_post(sem_send);
+       
+        printf("\033[1m\033[33mSending message\033[0m: %s", message.content);
+        double elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) * 1e-9;
+        total_time += elapsed_time;
+
+    }
+
+
+    sem_wait(sem_recv);
+    strncpy(message.content, "q", sizeof(message.content) - 1);
+    message.content[sizeof(message.content) - 1] = '\0'; 
+
+    printf("\n\033[1m\033[31mSender Exit\033[0m\n");
     send(message, &mailbox);
+    sem_post(sem_send);
 
-    double elapsed_time = (end.tv_sec - start.tv_sec) + 
-                          (end.tv_nsec - start.tv_nsec) / 1e9;
 
-    // 打印發送時間
-    printf("\nTotal sending time: %f seconds\n", elapsed_time);
 
-    // 關閉文件
+    printf("\nTotal sending time: %f seconds\n", total_time);
+
+
     fclose(input);
 
     sem_close(sem_send);
@@ -80,13 +107,11 @@ int main(int argc, char *argv[]){
     sem_unlink(SEM_SEND);
     sem_unlink(SEM_RECV);
 
-    // 分離共享記憶體
+
     if (method == 2) {
-        shmdt(mailbox.storage.shm_addr);  // 分離共享記憶體
+        shmdt(mailbox.storage.shm_addr);
     }
-    if(method == 1){
-        msgctl(mailbox.storage.msqid, IPC_RMID, NULL);
-    }
+
 
     return 0;
 }
