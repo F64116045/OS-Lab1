@@ -5,6 +5,7 @@
 
 
 void send(message_t message, mailbox_t* mailbox_ptr){
+    message.type = 1;
     if (mailbox_ptr->flag == 1) {
         if (msgsnd(mailbox_ptr->storage.msqid, &message, sizeof(message.content), 0) == -1) {
             perror("msgsnd failed");
@@ -71,7 +72,9 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
     }
 
+
     double total_time = 0;
+    //sem_post(sem_recv);
     while (fgets(message.content, sizeof(message.content), input)) { 
 
         sem_wait(sem_recv); 
@@ -104,8 +107,6 @@ int main(int argc, char *argv[]){
 
     sem_close(sem_send);
     sem_close(sem_recv);
-    sem_unlink(SEM_SEND);
-    sem_unlink(SEM_RECV);
 
 
     if (method == 2) {

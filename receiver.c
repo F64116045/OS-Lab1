@@ -6,7 +6,7 @@
 void receive(message_t* message_ptr, mailbox_t* mailbox_ptr) {
     if (mailbox_ptr->flag == 1) {
         int k = msgrcv(mailbox_ptr->storage.msqid, message_ptr, sizeof(message_ptr->content), 0, 0);
-        //printf("size : %ld\n",strlen(message_ptr->content));
+        printf("size : %ld\n",strlen(message_ptr->content));
         if (k == -1) {
             perror("msgrcv failed");
             exit(1);
@@ -55,6 +55,7 @@ int main(int argc, char *argv[]) {
     sem_t *sem_send = sem_open(SEM_SEND, O_CREAT, 0666, 0);
     sem_t *sem_recv = sem_open(SEM_RECV, O_CREAT, 0666, 1);
 
+    sem_post(sem_send);
     double total_time = 0;
     while (1) {      
         sem_wait(sem_send); 
@@ -76,6 +77,8 @@ int main(int argc, char *argv[]) {
 
     sem_close(sem_send);
     sem_close(sem_recv);
+    sem_unlink(SEM_SEND);
+    sem_unlink(SEM_RECV);
     
 
     printf("\nTotal receiving time: %f seconds\n", total_time);
