@@ -16,7 +16,7 @@ make
 ### 執行
 ```bash
 ./receiver 1          # 啟動 receiver，使用 Message Passing 模式
-./sender 1 message.txt # 啟動 sender，傳送 message.txt 的訊息
+./sender 1 message.txt # 啟動 sender，傳送 input.txt 的訊息
 ```
 `1 = Message Passing`，`2 = Shared Memory`
 
