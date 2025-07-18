@@ -5,8 +5,8 @@
 透過 `sender` 與 `receiver` ，模擬訊息的傳遞與接收，並比較這兩種 IPC 方法在效能上的差異。
 
 ## 主要內容
-| `sender.c` | 發送訊息給接收端，支援 Message Queue 或 Shared Memory |
-| `receiver.c` | 接收訊息並輸出內容，直到接收到 Exit 訊息為止 |
+- `sender.c`  發送訊息給接收端，支援 Message Queue 或 Shared Memory
+- `receiver.c`  接收訊息並輸出內容，直到接收到 Exit 訊息為止 
 
 ### 編譯
 ```bash
